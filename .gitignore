@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# local Postgres, uploads and generated secret
+/.data/
+
 # vercel
 .vercel
 

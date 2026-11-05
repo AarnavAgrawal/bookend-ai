@@ -15,6 +15,13 @@
       "when": 1793916585610,
       "tag": "0001_ledger_links",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793918805422,
+      "tag": "0002_product",
+      "breakpoints": true
     }
   ]
 }

@@ -81,6 +81,13 @@ export class FakeRamp implements RampClient {
     return { ...fund };
   }
 
+  async suspendFund(fundId: string): Promise<void> {
+    this.enter("suspendFund");
+    const fund = this.funds.get(fundId);
+    if (!fund) throw new RampApiError(404, null, "Fund not found");
+    fund.state = "SUSPENDED";
+  }
+
   async terminateFund(fundId: string): Promise<void> {
     this.enter("terminateFund");
     const fund = this.funds.get(fundId);
@@ -98,6 +105,11 @@ export class FakeRamp implements RampClient {
   async listFundTransactions(fundId: string): Promise<RampTransaction[]> {
     this.enter("listFundTransactions");
     return [...this.transactions.values()].filter((t) => t.fundId === fundId);
+  }
+
+  async createCardEmbedToken(cardId: string): Promise<string> {
+    this.enter("createCardEmbedToken");
+    return `embed-${cardId}`;
   }
 
   async listUsers(): Promise<RampUser[]> {

@@ -39,6 +39,8 @@ export const orgs = pgTable("orgs", {
   taxRateBps: integer("tax_rate_bps").notNull().default(0),
   cardBufferCents: cents("card_buffer_cents").notNull().default(0),
   attachReceiptsToInvoice: boolean("attach_receipts_to_invoice").notNull().default(true),
+  /** Where approval links go. */
+  contactEmail: text("contact_email"),
   createdAt: createdAt(),
 });
 
@@ -108,6 +110,8 @@ export const quotes = pgTable(
     totalCents: cents("total_cents").notNull(),
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
     acceptedVia: text("accepted_via", { enum: ["customer_link", "owner_recorded"] }),
+    assumptions: text("assumptions"),
+    draftedBy: text("drafted_by", { enum: ["agent", "owner"] }).notNull().default("owner"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("quotes_job_version").on(t.jobId, t.version)],
@@ -233,6 +237,9 @@ export const receipts = pgTable("receipts", {
   jobId: jobId(),
   transactionId: uuid("transaction_id").references(() => transactions.id),
   blobKey: text("blob_key").notNull(),
+  contentType: text("content_type").notNull().default("image/jpeg"),
+  merchantName: text("merchant_name"),
+  totalCents: cents("total_cents"),
   extraction: jsonb("extraction"),
   matchStatus: text("match_status", { enum: ["unmatched", "matched", "needs_review"] })
     .notNull()
@@ -244,7 +251,8 @@ export const voiceNotes = pgTable("voice_notes", {
   id: id(),
   orgId: orgId(),
   jobId: jobId(),
-  blobKey: text("blob_key").notNull(),
+  /** Null when the crew typed the note instead of recording it. */
+  blobKey: text("blob_key"),
   transcript: text("transcript"),
   extraction: jsonb("extraction"),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
@@ -261,6 +269,8 @@ export const changeOrders = pgTable(
     requestedLimitCents: cents("requested_limit_cents").notNull(),
     sellAmountCents: cents("sell_amount_cents"),
     reason: text("reason"),
+    /** A photo of the cart or supplier quote. A decline has no receipt. */
+    evidenceBlobKey: text("evidence_blob_key"),
     ownerStatus: text("owner_status", { enum: ["pending", "approved", "rejected"] })
       .notNull()
       .default("pending"),
@@ -311,6 +321,20 @@ export const invoices = pgTable("invoices", {
   marginStatus: text("margin_status", { enum: ["preliminary", "final"] })
     .notNull()
     .default("preliminary"),
+  createdAt: createdAt(),
+});
+
+/** Every message the app sends, kept so a missing email service can't lose a link. */
+export const outboxMessages = pgTable("outbox_messages", {
+  id: id(),
+  orgId: orgId(),
+  jobId: uuid("job_id").references(() => jobs.id),
+  toAddress: text("to_address"),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  provider: text("provider", { enum: ["resend", "local"] }).notNull(),
+  status: text("status", { enum: ["sent", "logged", "failed"] }).notNull(),
+  error: text("error"),
   createdAt: createdAt(),
 });
 

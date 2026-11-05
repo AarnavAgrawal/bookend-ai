@@ -72,6 +72,7 @@ describe("HttpRampClient transactions", () => {
       merchantName: "Ferguson",
       declineReason: null,
       occurredAt: new Date("2026-11-05T22:02:31Z"),
+      receiptItems: [],
     });
   });
 

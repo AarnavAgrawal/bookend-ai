@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import {
   approvals,
@@ -47,6 +47,15 @@ type OpenCardRequest = { fundName: string; userId: string; limitCents: number };
 type RaiseLimitRequest = { rampFundId: string; changeOrderId: string; newLimitCents: number };
 
 export type OperationStatus = "pending" | "succeeded" | "failed";
+
+/** For showing the owner what they are about to confirm. Doesn't consume anything. */
+export async function findApproval(db: Db, token: string) {
+  const [approval] = await db
+    .select()
+    .from(approvals)
+    .where(eq(approvals.tokenHash, sha256(token)));
+  return approval ?? null;
+}
 
 /** Unique per job, so a crashed create can find what it made. */
 export const fundNameFor = (jobId: string) => `Bookend job ${jobId}`;
@@ -430,6 +439,45 @@ async function finish(
       data: { operationId },
     });
   });
+}
+
+/**
+ * Freezing a card only ever reduces spend, so it needs no approval. It is still
+ * here because this module is the one place that changes a fund.
+ */
+export async function suspendJobCard(db: Db, ramp: RampClient, jobId: string): Promise<void> {
+  const [fund] = await db.select().from(jobFunds).where(eq(jobFunds.jobId, jobId));
+  if (!fund || fund.state !== "active") return;
+  await ramp.suspendFund(fund.rampFundId);
+  const readBack = await ramp.getFund(fund.rampFundId);
+  if (readBack.state !== "SUSPENDED") {
+    throw new RampWriteMismatchError(`fund state is ${readBack.state}`);
+  }
+  await db.update(jobFunds).set({ state: "suspended" }).where(eq(jobFunds.id, fund.id));
+}
+
+/** Irreversible, so only at `settled`: clears and refunds can land after the freeze. */
+export async function terminateJobCard(db: Db, ramp: RampClient, jobId: string): Promise<void> {
+  const [fund] = await db.select().from(jobFunds).where(eq(jobFunds.jobId, jobId));
+  if (!fund || fund.state === "terminated") return;
+  await ramp.terminateFund(fund.rampFundId);
+  await db.update(jobFunds).set({ state: "terminated" }).where(eq(jobFunds.id, fund.id));
+}
+
+/** Abandoned jobs shouldn't leave a live card behind. */
+export async function suspendIdleFunds(
+  db: Db,
+  ramp: RampClient,
+  { idleDays = 14, now = new Date() }: { idleDays?: number; now?: Date } = {},
+): Promise<number> {
+  const cutoff = new Date(now.getTime() - idleDays * 24 * 60 * 60 * 1000);
+  const idle = await db
+    .select({ jobId: jobFunds.jobId })
+    .from(jobFunds)
+    .innerJoin(jobs, eq(jobs.id, jobFunds.jobId))
+    .where(and(eq(jobFunds.state, "active"), lt(jobs.updatedAt, cutoff)));
+  for (const { jobId } of idle) await suspendJobCard(db, ramp, jobId);
+  return idle.length;
 }
 
 /** Finishes writes interrupted by a crash or an outage. Runs from the minute cron. */

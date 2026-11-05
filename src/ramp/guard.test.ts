@@ -308,7 +308,7 @@ describe("the guard is the only way to change a limit", () => {
     const files = sourceFiles("src");
     expect(files.length).toBeGreaterThan(5);
     const offenders = files.filter((file) =>
-      /\.(createFund|setFundLimit|terminateFund)\(/.test(readFileSync(file, "utf8")),
+      /\.(createFund|setFundLimit|suspendFund|terminateFund)\(/.test(readFileSync(file, "utf8")),
     );
     // testing.ts seeds the fake directly and never touches a real client.
     expect(offenders.map((f) => f.replaceAll("\\", "/"))).toEqual(["src/ramp/testing.ts"]);

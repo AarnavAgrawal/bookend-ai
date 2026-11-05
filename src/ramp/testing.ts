@@ -67,6 +67,7 @@ export function makeTxn(fundId: string, overrides: Partial<RampTransaction> = {}
     merchantName: "Ferguson",
     declineReason: null,
     occurredAt: new Date("2026-06-01T12:00:00Z"),
+    receiptItems: [],
     ...overrides,
   };
 }

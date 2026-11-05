@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  // PGlite loads a WASM build of Postgres from disk, so it can't be bundled.
+  serverExternalPackages: ["@electric-sql/pglite"],
   turbopack: {
     rules: {
       "*.css": {

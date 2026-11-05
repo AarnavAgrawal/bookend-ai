@@ -12,6 +12,7 @@ const SCOPES = [
   "cards:read",
   "transactions:read",
   "users:read",
+  "embedded_cards:write",
 ].join(" ");
 
 const TOKEN_REFRESH_MARGIN_MS = 60_000;
@@ -33,6 +34,8 @@ export type RampTransaction = {
   merchantName: string | null;
   declineReason: string | null;
   occurredAt: Date | null;
+  /** Item-level data from the merchant, when Ramp has it. */
+  receiptItems: Array<{ description: string; unitCostCents: number }>;
 };
 
 export type RampUser = { id: string; role: string; status: string };
@@ -50,11 +53,14 @@ export interface RampClient {
   /** Live funds only. Terminated funds stay readable on Ramp, so they are skipped here. */
   findFundByName(displayName: string): Promise<RampFund | null>;
   setFundLimit(fundId: string, limitCents: number): Promise<RampFund>;
+  suspendFund(fundId: string): Promise<void>;
   terminateFund(fundId: string): Promise<void>;
   getTransaction(transactionId: string): Promise<RampTransaction>;
   /** Every state, including declines. */
   listFundTransactions(fundId: string): Promise<RampTransaction[]>;
   listUsers(): Promise<RampUser[]>;
+  /** Short-lived. Must be minted for the exact origin of the page showing the card. */
+  createCardEmbedToken(cardId: string, parentOrigin: string): Promise<string>;
 }
 
 export class RampApiError extends Error {
@@ -97,6 +103,22 @@ const transactionSchema = z.looseObject({
       amount: z.number().nullish(),
       declined_amount: signedAmount,
       reason: z.string().nullish(),
+    })
+    .nullish(),
+  merchant_data: z
+    .looseObject({
+      receipt: z
+        .looseObject({
+          items: z
+            .array(
+              z.looseObject({
+                description: z.string().nullish(),
+                unit_cost: z.number().nullish(),
+              }),
+            )
+            .nullish(),
+        })
+        .nullish(),
     })
     .nullish(),
 });
@@ -145,6 +167,12 @@ function toTransaction(raw: z.infer<typeof transactionSchema>): RampTransaction 
     merchantName: raw.merchant_name ?? null,
     declineReason: decline?.reason ?? null,
     occurredAt: raw.user_transaction_time ? new Date(raw.user_transaction_time) : null,
+    // The spec calls unit_cost a plain number. Read as dollars, like decline_details.amount.
+    receiptItems: (raw.merchant_data?.receipt?.items ?? []).flatMap((item) =>
+      item.description && item.unit_cost
+        ? [{ description: item.description, unitCostCents: Math.round(item.unit_cost * 100) }]
+        : [],
+    ),
   };
 }
 
@@ -198,6 +226,10 @@ export class HttpRampClient implements RampClient {
     return toFund(fundSchema.parse(raw));
   }
 
+  async suspendFund(fundId: string): Promise<void> {
+    await this.request("POST", `/developer/v1/funds/${encodeURIComponent(fundId)}/suspension`);
+  }
+
   async terminateFund(fundId: string): Promise<void> {
     await this.request("DELETE", `/developer/v1/funds/${encodeURIComponent(fundId)}`);
   }
@@ -205,20 +237,34 @@ export class HttpRampClient implements RampClient {
   async getTransaction(transactionId: string): Promise<RampTransaction> {
     const raw = await this.request(
       "GET",
-      `/developer/v1/transactions/${encodeURIComponent(transactionId)}`,
+      `/developer/v1/transactions/${encodeURIComponent(transactionId)}?include_merchant_data=true`,
     );
     return toTransaction(transactionSchema.parse(raw));
   }
 
   async listFundTransactions(fundId: string): Promise<RampTransaction[]> {
     // Without state=ALL, Ramp leaves declines out, and declines drive change orders.
-    const query = new URLSearchParams({ limit_id: fundId, state: "ALL", page_size: "100" });
+    const query = new URLSearchParams({
+      limit_id: fundId,
+      state: "ALL",
+      include_merchant_data: "true",
+      page_size: "100",
+    });
     const rows = await this.collect(`/developer/v1/transactions?${query}`, transactionSchema);
     return rows.map(toTransaction);
   }
 
   async listUsers(): Promise<RampUser[]> {
     return this.collect("/developer/v1/users?page_size=100", userSchema);
+  }
+
+  async createCardEmbedToken(cardId: string, parentOrigin: string): Promise<string> {
+    const raw = await this.request(
+      "POST",
+      `/developer/v1/embedded/cards/${encodeURIComponent(cardId)}/embed`,
+      { body: { parent_origin: parentOrigin } },
+    );
+    return z.looseObject({ embed_init_token: z.string() }).parse(raw).embed_init_token;
   }
 
   private async collect<T extends z.ZodType>(firstPath: string, item: T): Promise<z.infer<T>[]> {

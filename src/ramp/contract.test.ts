@@ -78,6 +78,12 @@ describe.each(targets)("RampClient contract: %s", (_name, makeClient) => {
     expect(await ramp.getFund(fund.id)).toEqual({ ...fund, limitCents: 105_000 });
   });
 
+  it("suspends a fund", async () => {
+    const { fund } = await newFund();
+    await ramp.suspendFund(fund.id);
+    expect((await ramp.getFund(fund.id)).state).toBe("SUSPENDED");
+  });
+
   it("hides terminated funds from name lookup", async () => {
     const { fund, input } = await newFund();
     await ramp.terminateFund(fund.id);
