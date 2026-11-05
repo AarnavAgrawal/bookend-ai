@@ -61,6 +61,8 @@ export const rampConnections = pgTable("ramp_connections", {
   orgId: orgId().unique(),
   mode: text("mode", { enum: ["shared_sandbox", "sandbox", "production"] }).notNull(),
   encryptedCredentials: text("encrypted_credentials"),
+  /** The Ramp user who owns this org's job funds. Guests can't hold spend. */
+  fundOwnerUserId: text("fund_owner_user_id"),
   tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
   createdAt: createdAt(),
 });
@@ -167,6 +169,8 @@ export const jobFunds = pgTable("job_funds", {
   rampFundId: text("ramp_fund_id").notNull().unique(),
   rampCardId: text("ramp_card_id"),
   limitCents: cents("limit_cents").notNull(),
+  /** Declines from before this moment can't open a change order: the limit has moved on. */
+  limitChangedAt: timestamp("limit_changed_at", { withTimezone: true }).notNull().defaultNow(),
   state: text("state", { enum: ["active", "suspended", "terminated"] }).notNull(),
   createdAt: createdAt(),
 });
@@ -197,6 +201,7 @@ export const webhookInbox = pgTable("webhook_inbox", {
   source: text("source", { enum: ["ramp", "simulated"] }).notNull(),
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
   processedAt: timestamp("processed_at", { withTimezone: true }),
+  attempts: integer("attempts").notNull().default(0),
   error: text("error"),
 });
 
@@ -213,6 +218,8 @@ export const transactions = pgTable(
     amountCents: cents("amount_cents").notNull(),
     merchantName: text("merchant_name"),
     declineReason: text("decline_reason"),
+    /** Set on a limit decline once a change order covers it, so it's only counted once. */
+    changeOrderId: uuid("change_order_id").references(() => changeOrders.id),
     occurredAt: timestamp("occurred_at", { withTimezone: true }),
     source: text("source", { enum: ["ramp", "simulated"] }).notNull().default("ramp"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -250,7 +257,6 @@ export const changeOrders = pgTable(
     id: id(),
     orgId: orgId(),
     jobId: jobId(),
-    triggerTransactionId: uuid("trigger_transaction_id").references(() => transactions.id),
     declinedCents: cents("declined_cents").notNull(),
     requestedLimitCents: cents("requested_limit_cents").notNull(),
     sellAmountCents: cents("sell_amount_cents"),

@@ -92,7 +92,8 @@ async function setup(token: string) {
     const { body } = await api(token, "GET", "/developer/v1/users?page_size=10");
     const users = (body.data ?? []) as Array<{ id: string; role?: string; status?: string }>;
     show("users", users.map(({ id, role, status }) => ({ id, role, status })));
-    userId = users[0]?.id;
+    // Guests can't create sandbox transactions, so skip them.
+    userId = users.find((u) => u.role !== "GUEST_USER" && u.status === "USER_ACTIVE")?.id;
   }
   if (!userId) throw new Error("No sandbox user found. Set SPIKE_USER_ID.");
 
@@ -127,7 +128,7 @@ async function check(token: string, fundId: string) {
   const txns = await api(
     token,
     "GET",
-    `/developer/v1/transactions?limit_id=${fundId}&include_merchant_data=true&page_size=50`,
+    `/developer/v1/transactions?limit_id=${fundId}&state=ALL&include_merchant_data=true&page_size=50`,
   );
   const rows = (txns.body.data ?? []) as Json[];
   console.log(`transactions: ${rows.length}`);

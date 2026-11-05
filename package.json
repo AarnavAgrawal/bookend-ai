@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:live": "dotenv -e .env.local -v RAMP_LIVE=1 -- vitest run src/ramp/contract.test.ts",
     "typecheck": "tsc --noEmit",
     "spike": "dotenv -e .env.local -- tsx scripts/ramp-spike.ts"
   },
