@@ -63,7 +63,7 @@ describe("one org can't reach another org's data", () => {
   });
 
   it("every job action refuses another org's job", async () => {
-    const { ctx, b, job } = await twoOrgs();
+    const { b, job } = await twoOrgs();
     const orgId = b.id;
     const jobId = job.id;
     const attempts: Array<[string, () => Promise<unknown>]> = [
@@ -125,7 +125,7 @@ describe("one org can't reach another org's data", () => {
   });
 
   it("the agent's history for one org never reads another's", async () => {
-    const { ctx, b, job } = await twoOrgs();
+    const { b, job } = await twoOrgs();
     await expect(
       draftQuoteWithAgent(
         { db, claude: { messages: {} } as never },

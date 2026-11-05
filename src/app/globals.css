@@ -1,26 +1,128 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-paper: #f7f6f2;
+  --color-ink: #141414;
+  --color-amber: #e8a33d;
+  --color-red: #d64545;
+  --color-redtext: #b32f2f;
+  --color-line: #dedbd2;
+  /* The brand gray fails contrast for text on paper, so text uses this deeper one. */
+  --color-muted: #66655f;
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-barlow);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-text-size-adjust: 100%;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-amber);
+    outline-offset: 2px;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    background: white;
+    border: 1px solid var(--color-line);
+    padding: 0.55rem 0.7rem;
+    font: inherit;
+    color: inherit;
+  }
+
+  label {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--color-muted);
+  }
+
+  label > input,
+  label > textarea,
+  label > select {
+    margin-top: 0.25rem;
+    color: var(--color-ink);
+  }
+
+  input[type="checkbox"] {
+    width: auto;
+    margin: 0 0.5rem 0 0;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    padding: 0.5rem 1.1rem;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid var(--color-ink);
+  }
+
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: wait;
+  }
+
+  .btn-amber {
+    background: var(--color-amber);
+    border-color: var(--color-amber);
+    color: var(--color-ink);
+  }
+
+  .btn-quiet {
+    background: transparent;
+    color: var(--color-ink);
+    border-color: var(--color-line);
+  }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--color-redtext);
+    border-color: var(--color-red);
+  }
+
+  /* A ticket: the quote at one end, the outcome at the other. */
+  .ticket {
+    border-left: 6px solid var(--color-ink);
+    border-right: 6px solid var(--color-amber);
+    background: white;
+    padding: 1.25rem 1.5rem;
+  }
+
+  .ticket-alert {
+    border-left-color: var(--color-red);
+    border-right-color: var(--color-red);
+  }
+
+  .money {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
 }
