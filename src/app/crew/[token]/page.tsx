@@ -62,13 +62,18 @@ export default async function CrewPage(props: PageProps<"/crew/[token]">) {
         <div className="mt-5">
           <p className="money text-5xl">{money(spend.remainingCents)}</p>
           <p className="mb-2 text-muted">left on the card, of {money(fund.limitCents)}</p>
-          <Rail committedCents={spend.committedCents} limitCents={fund.limitCents} height="h-7" />
+          <Rail
+            committedCents={spend.committedCents}
+            limitCents={fund.limitCents}
+            height="h-7"
+            declined={declined}
+          />
         </div>
       )}
 
       {declined && order && (
         <div className="ticket ticket-alert mt-6">
-          <h2 className="text-2xl">Declined: {money(order.declinedCents)} over budget</h2>
+          <h2 className="text-2xl">Card declined a {money(order.declinedCents)} purchase</h2>
           {order.reason ? (
             <p className="mt-2">
               The owner has your note: {order.reason} Retry the purchase once they raise the limit.

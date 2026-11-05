@@ -138,13 +138,17 @@ export default async function JobPage(props: PageProps<"/jobs/[id]">) {
 
       {fund && SPENDING_STATES.includes(job.state) && (
         <div className="mt-6">
-          <Rail committedCents={spend.committedCents} limitCents={fund.limitCents} />
+          <Rail
+            committedCents={spend.committedCents}
+            limitCents={fund.limitCents}
+            declined={job.state === "change_pending"}
+          />
           <div className="mt-2 flex justify-between gap-4">
             <span className="money text-xl">{money(spend.committedCents)} spent</span>
             <span className="money text-xl">{money(fund.limitCents)} limit</span>
           </div>
           {job.nearLimitWarnedAt && job.state === "active" && (
-            <p className="mt-1 text-sm text-muted">This job has used 85% of its card.</p>
+            <p className="mt-1 text-sm text-muted">This job is close to its limit.</p>
           )}
         </div>
       )}
@@ -287,7 +291,7 @@ export default async function JobPage(props: PageProps<"/jobs/[id]">) {
               </li>
             ))}
           </ul>
-          {fund && (
+          {fund && fund.state !== "terminated" && (
             <form action={syncAction.bind(null, job.id)} className="mt-3">
               <SubmitButton className="btn btn-quiet" pending="Checking Ramp…">
                 Check Ramp now

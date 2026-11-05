@@ -30,13 +30,15 @@ export function Rail({
   committedCents,
   limitCents,
   height = "h-5",
+  declined = false,
 }: {
   committedCents: number;
   limitCents: number;
   height?: string;
+  /** Red means the card refused something. Spending right up to the limit is fine. */
+  declined?: boolean;
 }) {
   const ratio = limitCents > 0 ? Math.min(committedCents / limitCents, 1) : 0;
-  const full = ratio >= 1;
   return (
     <div
       role="meter"
@@ -50,11 +52,11 @@ export function Rail({
       <div className="w-2 bg-ink" />
       <div className="flex-1 bg-line">
         <div
-          className={`h-full transition-[width] duration-500 motion-reduce:transition-none ${full ? "bg-red" : "bg-amber"}`}
+          className={`h-full transition-[width] duration-500 motion-reduce:transition-none ${declined ? "bg-red" : "bg-amber"}`}
           style={{ width: `${ratio * 100}%` }}
         />
       </div>
-      <div className={`w-2 ${full ? "bg-red" : "bg-ink"}`} />
+      <div className={`w-2 ${declined ? "bg-red" : "bg-ink"}`} />
     </div>
   );
 }
