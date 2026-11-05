@@ -10,17 +10,22 @@ import {
   manualCosts,
   quoteLines,
   receipts,
-  transactions,
   voiceNotes,
 } from "@/db/schema";
 import { transitionJob } from "@/domain/jobs";
-import { applyBps, computeMargin, laborCost, summarizeSpend } from "@/domain/money";
+import { applyBps, computeMargin, laborCost } from "@/domain/money";
 import { lineSellCents } from "@/domain/quote";
 import { renderInvoicePdf, type InvoiceLine } from "@/invoice/pdf";
 import type { Deps } from "@/platform/deps";
 import { signLink, verifyLink } from "@/platform/links";
-import { suspendJobCard, terminateJobCard } from "@/ramp/guard";
-import { applyTransaction } from "@/ramp/ledger";
+import {
+  resumePendingOperations,
+  suspendIdleFunds,
+  suspendJobCard,
+  terminateJobCard,
+} from "@/ramp/guard";
+import { applyTransaction, reconcileFunds } from "@/ramp/ledger";
+import { processInbox } from "@/ramp/webhooks";
 import { jobSpend } from "./field";
 import {
   assertAiBudget,
@@ -133,21 +138,27 @@ export async function jobMargin(db: Db, jobId: string, revenueCents: number) {
   };
 }
 
-async function draftInvoice(db: Db, orgId: string, jobId: string, taxRateBps: number) {
+async function invoiceFigures(db: Db, jobId: string, taxRateBps: number) {
   const lines = await revenueLines(db, jobId);
   const subtotalCents = lines.reduce((sum, l) => sum + l.amountCents, 0);
   const taxCents = applyBps(subtotalCents, taxRateBps);
   const margin = await jobMargin(db, jobId, subtotalCents);
-  await db.transaction(async (tx) => {
-    await tx.insert(invoices).values({
-      orgId,
-      jobId,
+  return {
+    lines,
+    figures: {
       subtotalCents,
       taxCents,
       totalCents: subtotalCents + taxCents,
       marginCents: margin.marginCents,
       marginBps: margin.marginBps,
-    });
+    },
+  };
+}
+
+async function draftInvoice(db: Db, orgId: string, jobId: string, taxRateBps: number) {
+  const { figures } = await invoiceFigures(db, jobId, taxRateBps);
+  await db.transaction(async (tx) => {
+    await tx.insert(invoices).values({ orgId, jobId, ...figures });
     await transitionJob(tx, { orgId, jobId, event: "INVOICE_DRAFTED", actor: "system" });
   });
 }
@@ -215,6 +226,10 @@ export async function sendInvoice(
   const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId));
   const customer = await customerOf(db, job.customerId);
 
+  // The customer may have accepted a change order since the draft, so the
+  // figures are worked out again at the moment the invoice is frozen.
+  const { lines, figures } = await invoiceFigures(db, jobId, org.taxRateBps);
+
   const pdf = await renderInvoicePdf({
     businessName: org.name,
     invoiceNumber: `${job.jobNumber}`.padStart(4, "0"),
@@ -222,10 +237,10 @@ export async function sendInvoice(
     customerName: customer?.name ?? "Customer",
     customerAddress: customer?.address ?? null,
     jobTitle: job.title,
-    lines: await revenueLines(db, jobId),
-    subtotalCents: invoice.subtotalCents,
-    taxCents: invoice.taxCents,
-    totalCents: invoice.totalCents,
+    lines,
+    subtotalCents: figures.subtotalCents,
+    taxCents: figures.taxCents,
+    totalCents: figures.totalCents,
     receipts: org.attachReceiptsToInvoice ? await invoiceReceipts(deps, jobId) : [],
   });
   const pdfBlobKey = `${orgId}/${jobId}/invoice-${invoice.id}.pdf`;
@@ -234,7 +249,7 @@ export async function sendInvoice(
   await db.transaction(async (tx) => {
     await tx
       .update(invoices)
-      .set({ pdfBlobKey, sentAt: new Date() })
+      .set({ ...figures, pdfBlobKey, sentAt: new Date() })
       .where(eq(invoices.id, invoice.id));
     await transitionJob(tx, { orgId, jobId, event: "INVOICE_SENT", actor });
   });
@@ -245,7 +260,7 @@ export async function sendInvoice(
     jobId,
     to: customer?.email ?? null,
     subject: `Invoice from ${org.name}: ${job.title}`,
-    text: `Your invoice for ${job.title} is ${money(invoice.totalCents)}.\n\nView it here:\n${url}`,
+    text: `Your invoice for ${job.title} is ${money(figures.totalCents)}.\n\nView it here:\n${url}`,
     attachments: [{ filename: `invoice-${job.jobNumber}.pdf`, content: pdf }],
   });
   return { url };
@@ -294,7 +309,15 @@ export async function recordPayment(
   if (ramp) await terminateJobCard(db, ramp, jobId);
 }
 
-/** Margin only counts money that can't still change, so pending spend keeps it preliminary. */
-export function marginIsSettled(rows: Array<typeof transactions.$inferSelect>) {
-  return summarizeSpend(rows, 0).pendingCents === 0;
+/** One pass of background work. Runs from the minute cron, or from the Sync button. */
+export async function runTick(deps: Pick<Deps, "db" | "ramp">) {
+  const { db, ramp } = deps;
+  if (!ramp) return { skipped: true as const };
+  return {
+    skipped: false as const,
+    inbox: await processInbox(db, ramp),
+    operations: await resumePendingOperations(db, ramp),
+    reconcile: await reconcileFunds(db, ramp),
+    suspended: await suspendIdleFunds(db, ramp),
+  };
 }
