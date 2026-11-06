@@ -40,7 +40,7 @@ npm run spike -- setup   # hands-on sandbox checks, see scripts/ramp-spike.ts
 1. Create a Vercel project and connect Neon, Clerk and a private Blob store.
 2. Set `APP_SECRET` to a long random string, `CRON_SECRET` to another, and `APP_URL` to the site's address. Add the service keys from the table above.
 3. Run `npm run db:migrate` against the production `DATABASE_URL`.
-4. Deploy. `vercel.json` schedules `/api/cron/tick` every minute, which needs Vercel Pro.
+4. Deploy. `vercel.json` schedules `/api/cron/tick` once a day, the most the Hobby plan allows. On Vercel Pro, change the schedule to `* * * * *` so missed webhooks are caught within a minute. Until then, use "Check Ramp now" on the job page.
 5. Register the Ramp webhook once:
    1. `POST /developer/v1/webhooks` with `endpoint_url` set to `https://<your-site>/api/webhooks/ramp` and these event types: `transactions.authorized`, `transactions.declined`, `transactions.cleared`.
    2. Save the returned `secret` as `RAMP_WEBHOOK_SECRET`, and redeploy.
