@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bookend
 
-## Getting Started
+Quote-to-cash for small service businesses, on top of Ramp. Ramp spend history prices the quote, a card per job enforces the budget, and Bookend handles change orders, the invoice and the true margin.
 
-First, run the development server:
+## Run it locally
+
+You need Node 22 or later. With no accounts at all, the app runs on a local Postgres (`.data/`), keeps uploads on disk, and shows outgoing email on the Messages page.
 
 ```bash
+npm install
+cp .env.example .env.local   # add your Ramp sandbox keys
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>, create your business, and add a job. If you use another port, set `APP_URL` to match, because crew and customer links are built from it.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Each service below turns on when its key is set. Without one, the app offers manual entry rather than faking the result.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Service | Variables | Without it |
+|---|---|---|
+| Ramp sandbox | `RAMP_CLIENT_ID`, `RAMP_CLIENT_SECRET` | Job cards can't open |
+| Claude | `ANTHROPIC_API_KEY` | Quotes and receipts are entered by hand |
+| Deepgram | `DEEPGRAM_API_KEY` | Crew type their end-of-job note |
+| Resend | `RESEND_API_KEY`, `EMAIL_FROM` | Email waits on the Messages page |
+| Clerk | `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | One local owner, no sign-in. Production refuses this |
+| Neon | `DATABASE_URL` | Local Postgres. Production refuses this |
+| Vercel Blob | `BLOB_READ_WRITE_TOKEN` or a connected store | Files stay in `.data/files` |
 
-## Learn More
+## Test it
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm test            # everything that needs no accounts
+npm run test:pg     # 20-way races on a real Postgres server
+npm run test:live   # the Ramp contract suite against the live sandbox
+npm run spike -- setup   # hands-on sandbox checks, see scripts/ramp-spike.ts
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy it
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Create a Vercel project and connect Neon, Clerk and a private Blob store.
+2. Set `APP_SECRET` to a long random string, `CRON_SECRET` to another, and `APP_URL` to the site's address. Add the service keys from the table above.
+3. Run `npm run db:migrate` against the production `DATABASE_URL`.
+4. Deploy. `vercel.json` schedules `/api/cron/tick` every minute, which needs Vercel Pro.
+5. Register the Ramp webhook once:
+   1. `POST /developer/v1/webhooks` with `endpoint_url` set to `https://<your-site>/api/webhooks/ramp` and these event types: `transactions.authorized`, `transactions.declined`, `transactions.cleared`.
+   2. Save the returned `secret` as `RAMP_WEBHOOK_SECRET`, and redeploy.
+   3. Ramp posts a challenge to the endpoint, which appears in the function logs. Send it to `POST /developer/v1/webhooks/{id}/verify`.
+6. To show card details to the crew, add your site under Allowed origins in the Ramp app's developer settings, publish the token at `/.well-known/ramp-verification.txt`, and set `RAMP_BUSINESS_ID` to the `id` from `GET /developer/v1/business`.
 
-## Deploy on Vercel
+## How it's put together
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `src/domain`: pure rules. Money math, the job state machine, quote pricing.
+- `src/ramp`: the Ramp client, the ledger, the webhook inbox, and `guard.ts`. The guard is the only code allowed to change a card, and a test fails if anything else tries.
+- `src/ai`: the quote agent and the extraction calls. Claude picks evidence and reads documents, and code does the arithmetic.
+- `src/services`: what a job does, from quote through close-out.
+- `src/platform`: everything external, each behind an interface with a local stand-in.
+- `src/app`: pages, server actions and API routes.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Postgres is the source of truth. Webhooks only prompt a re-fetch from Ramp, and a minute cron reconciles every open fund, so a missed or repeated event can't change the books.
+
+Findings from testing Ramp's sandbox are in `docs/ramp-sandbox-findings.md`.

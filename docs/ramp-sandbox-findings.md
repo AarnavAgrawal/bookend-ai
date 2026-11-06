@@ -22,7 +22,13 @@ Tested against `demo-api.ramp.com` on 2026-11-05 with `scripts/ramp-spike.ts`.
 - **Card embed:** minting a token fails with `RAMP_EMBEDDED_7004: Embed config not found for business` until an allowed origin is added in the Ramp app's developer settings and verified with a file at `/.well-known/ramp-verification.txt`. The fix is assumed, not yet tested.
 - **Guests:** the Guest role can't create sandbox transactions, so job funds need a non-guest owner.
 
+## Proven end to end
+
+A full job ran through the app in a real browser against the live sandbox. The fund was read back from Ramp directly at each step: created at the approved limit, raised to the new limit by a change order, `SUSPENDED` at close, and `TERMINATED` when paid. Card spend in that run came from the labelled simulator, because of open questions 1 and 2 below.
+
 ## Still open
+
+Funds are created with `physical_card: false`. Counter purchases need that revisited once question 6 is answered.
 
 These need the demo panel at `demo.ramp.com` (Ctrl+J, "add transactions") against a test fund:
 

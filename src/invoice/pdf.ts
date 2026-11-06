@@ -35,12 +35,20 @@ function rightAligned(page: PDFPage, text: string, y: number, font: PDFFont, siz
   page.drawText(text, { x, y, size, font, color: INK });
 }
 
-function truncate(text: string, font: PDFFont, size: number, width: number) {
-  let result = printable(text);
-  while (result.length > 1 && font.widthOfTextAtSize(result, size) > width) {
-    result = result.slice(0, -1);
+/** Long descriptions, like a change order's reason, must wrap: this is a customer's bill. */
+function wrap(text: string, font: PDFFont, size: number, width: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of printable(text).split(/\s+/)) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && font.widthOfTextAtSize(candidate, size) > width) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
   }
-  return result;
+  return line ? [...lines, line] : lines;
 }
 
 export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer> {
@@ -91,15 +99,12 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
       page = pdf.addPage(PAGE);
       y = PAGE[1] - MARGIN;
     }
-    page.drawText(truncate(line.description, regular, 10, 400), {
-      x: MARGIN,
-      y,
-      size: 10,
-      font: regular,
-      color: INK,
-    });
     rightAligned(page, money(line.amountCents), y, regular, 10);
-    y -= 18;
+    for (const text of wrap(line.description, regular, 10, 400)) {
+      page.drawText(text, { x: MARGIN, y, size: 10, font: regular, color: INK });
+      y -= 14;
+    }
+    y -= 4;
   }
 
   y -= 6;

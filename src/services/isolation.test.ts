@@ -63,7 +63,7 @@ describe("one org can't reach another org's data", () => {
   });
 
   it("every job action refuses another org's job", async () => {
-    const { b, job } = await twoOrgs();
+    const { ctx, b, job } = await twoOrgs();
     const orgId = b.id;
     const jobId = job.id;
     const attempts: Array<[string, () => Promise<unknown>]> = [

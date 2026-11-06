@@ -4,12 +4,27 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import type { Db } from "./client";
 import * as schema from "./schema";
 
-/** A real Postgres engine in memory, migrated with the same SQL production uses. */
-export async function createTestDb(): Promise<{ db: Db; close: () => Promise<void> }> {
+// Booting Postgres and migrating takes seconds, and each test file gets its own
+// copy of this module, so that happens once per file rather than once per test.
+let shared: Promise<{ client: PGlite; db: Db }> | null = null;
+
+async function boot() {
   const client = new PGlite();
   const db = drizzle(client, { schema });
   await migrate(db, { migrationsFolder: "./drizzle" });
-  return { db: db as unknown as Db, close: () => client.close() };
+  return { client, db: db as unknown as Db };
+}
+
+/** A real Postgres engine in memory, migrated with the same SQL production uses. Starts empty. */
+export async function createTestDb(): Promise<{ db: Db; close: () => Promise<void> }> {
+  shared ??= boot();
+  const { client, db } = await shared;
+  const { rows } = await client.query<{ tablename: string }>(
+    "select tablename from pg_tables where schemaname = 'public'",
+  );
+  const tables = rows.map((r) => `"${r.tablename}"`).join(", ");
+  await client.exec(`truncate ${tables} cascade`);
+  return { db, close: async () => {} };
 }
 
 export async function seedOrgWithJob(db: Db, name = "Test Plumbing") {
