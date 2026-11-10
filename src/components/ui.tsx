@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { JobState } from "@/domain/transition";
-import { SideNav } from "./side-nav";
+import { AppShell } from "./app/shell";
 
 export const money = (cents: number) =>
   `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -31,7 +31,7 @@ export const STATE_LABELS: Record<JobState, string> = {
 export const EVENT_LABELS: Record<string, string> = {
   QUOTE_DRAFTED: "Quote drafted",
   QUOTE_REVISION_REQUESTED: "Quote reopened",
-  OWNER_APPROVED_QUOTE: "Quote sent to the customer",
+  OWNER_APPROVED_QUOTE: "Quote sent",
   CUSTOMER_ACCEPTED: "Customer accepted the quote",
   CARD_OPEN_STARTED: "Card approved",
   CARD_VERIFIED: "Card opened",
@@ -155,19 +155,15 @@ export function BudgetBar({ spentCents, quotedCents }: { spentCents: number; quo
 export function ErrorNote({ message }: { message?: string | string[] }) {
   if (!message) return null;
   return (
-    <p role="alert" className="mb-5 border-l-4 border-red bg-white px-4 py-3 text-redtext">
+    <p role="alert" className="mb-5 rounded-md border border-[#F0C9C5] bg-[#FBE8E6] px-4 py-2.5 text-[14px] text-[#9F2F28]">
       {message}
     </p>
   );
 }
 
+/** The owner app frame. Kept so older pages pick up the new shell. */
 export function Shell({ children, orgName }: { children: ReactNode; orgName: string }) {
-  return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[15rem_1fr]">
-      <SideNav orgName={orgName} clerk={Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)} />
-      <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-20 sm:px-8 lg:pt-10">{children}</main>
-    </div>
-  );
+  return <AppShell orgName={orgName}>{children}</AppShell>;
 }
 
 /** Breadcrumbs, a title and the page's actions, the same way on every page. */

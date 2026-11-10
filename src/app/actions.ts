@@ -62,16 +62,29 @@ function friendly(error: unknown): string {
 }
 
 /** Runs the work, then lands on `path`, carrying a readable error if it failed. */
-async function attempt(path: string, work: () => Promise<string | void>): Promise<never> {
+async function attempt(
+  path: string,
+  work: () => Promise<string | void>,
+  notice?: string,
+): Promise<never> {
   let target = path;
   try {
     target = (await work()) ?? path;
+    if (notice) target += `${target.includes("?") ? "&" : "?"}notice=${encodeURIComponent(notice)}`;
   } catch (error) {
     target = `${path}?error=${encodeURIComponent(friendly(error))}`;
   }
   revalidatePath(path);
   redirect(target);
 }
+
+const emailIsOff = () => !process.env.RESEND_API_KEY || !process.env.EMAIL_FROM;
+
+/** Says plainly when nothing was emailed, so the owner knows to share the link. */
+const sentNotice = (thing: string, link: string) =>
+  emailIsOff()
+    ? `${thing} ready. Email isn't set up, so copy the ${link} and send it yourself.`
+    : `${thing} sent`;
 
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 const optional = (form: FormData, name: string) => text(form, name) || undefined;
@@ -119,12 +132,12 @@ export async function saveSettingsAction(form: FormData) {
       .update(orgs)
       .set({ ...orgSettings(form), attachReceiptsToInvoice: form.get("attachReceipts") === "on" })
       .where(eq(orgs.id, session.orgId));
-  });
+  }, "Settings saved");
 }
 
 export async function connectRampAction() {
   const { deps, session } = await owner();
-  await attempt("/settings", () => connectRamp(deps, { orgId: session.orgId }));
+  await attempt("/settings", () => connectRamp(deps, { orgId: session.orgId }), "Ramp connected");
 }
 
 export async function createJobAction(form: FormData) {
@@ -145,14 +158,14 @@ export async function createJobAction(form: FormData) {
       },
     });
     return `/jobs/${job.id}`;
-  });
+  }, "Job created");
 }
 
 export async function draftWithClaudeAction(jobId: string) {
   const { deps, session } = await owner();
   await attempt(`/jobs/${jobId}`, async () => {
     await draftQuoteWithAgent(deps, { orgId: session.orgId, jobId, actor: session.name });
-  });
+  }, "Quote drafted from your price history");
 }
 
 const linesSchema = z.array(
@@ -179,7 +192,7 @@ export async function saveQuoteAction(jobId: string, form: FormData) {
       draftedBy: "owner",
       actor: session.name,
     });
-  });
+  }, "Quote saved");
 }
 
 export async function sendQuoteAction(jobId: string, version: number) {
@@ -191,13 +204,14 @@ export async function sendQuoteAction(jobId: string, version: number) {
       expectedVersion: version,
       actor: session.name,
     });
-  });
+  }, sentNotice("Quote", "customer link"));
 }
 
 export async function recordAcceptanceAction(jobId: string) {
   const { deps, session } = await owner();
   await attempt(`/jobs/${jobId}`, () =>
     recordVerbalAcceptance(deps.db, { orgId: session.orgId, jobId }),
+    "Acceptance recorded",
   );
 }
 
@@ -221,7 +235,7 @@ export async function requestRaiseAction(jobId: string) {
 
 export async function rejectChangeAction(jobId: string) {
   const { deps, session } = await owner();
-  await attempt(`/jobs/${jobId}`, () => rejectChangeOrder(deps.db, { orgId: session.orgId, jobId }));
+  await attempt(`/jobs/${jobId}`, () => rejectChangeOrder(deps.db, { orgId: session.orgId, jobId }), "Limit kept. The crew carries on within it.");
 }
 
 export async function ownerCustomerResponseAction(
@@ -232,6 +246,7 @@ export async function ownerCustomerResponseAction(
   const { deps, session } = await owner();
   await attempt(`/jobs/${jobId}`, () =>
     recordCustomerResponseByOwner(deps.db, { orgId: session.orgId, changeOrderId, accepted }),
+    "Customer response recorded",
   );
 }
 
@@ -239,13 +254,14 @@ export async function sendInvoiceAction(jobId: string) {
   const { deps, session } = await owner();
   await attempt(`/jobs/${jobId}`, async () => {
     await sendInvoice(deps, { orgId: session.orgId, jobId, actor: session.name });
-  });
+  }, sentNotice("Invoice", "invoice link"));
 }
 
 export async function recordPaymentAction(jobId: string) {
   const { deps, session } = await owner();
   await attempt(`/jobs/${jobId}`, () =>
     recordPayment(deps, { orgId: session.orgId, jobId, actor: session.name }),
+    "Marked as paid. The job card is closed.",
   );
 }
 
@@ -259,14 +275,14 @@ export async function cancelJobAction(jobId: string) {
       actor: session.name,
     });
     if (deps.ramp) await suspendJobCard(deps.db, deps.ramp, jobId);
-  });
+  }, "Job cancelled");
 }
 
 export async function syncAction(jobId: string) {
   const { deps } = await owner();
   await attempt(`/jobs/${jobId}`, async () => {
     await runTick(deps);
-  });
+  }, "Checked Ramp for new card activity");
 }
 
 export async function enterReceiptAction(jobId: string, receiptId: string, form: FormData) {
@@ -279,6 +295,7 @@ export async function enterReceiptAction(jobId: string, receiptId: string, form:
       merchantName: text(form, "merchant"),
       totalCents: cents(form, "total"),
     }),
+    "Receipt saved",
   );
 }
 
@@ -289,7 +306,7 @@ export async function addPriceAction(form: FormData) {
     const unitCostCents = cents(form, "cost");
     if (!item || unitCostCents <= 0) throw new NotAllowedError("Enter an item and a cost.");
     await addPriceBookItem(deps.db, { orgId: session.orgId, item, unitCostCents });
-  });
+  }, "Price added");
 }
 
 export async function importPricesAction(form: FormData) {
@@ -298,14 +315,14 @@ export async function importPricesAction(form: FormData) {
     const csv = text(form, "csv");
     const count = await importPriceCsv(deps.db, { orgId: session.orgId, csv });
     if (count === 0) throw new NotAllowedError("No rows found. Use one `item,cost` per line.");
-  });
+  }, "Prices imported");
 }
 
 export async function loadSamplePricesAction() {
   const { deps, session } = await owner();
   await attempt("/prices", async () => {
     await loadSamplePrices(deps.db, session.orgId);
-  });
+  }, "Sample prices added");
 }
 
 export async function backfillAction() {
@@ -313,7 +330,7 @@ export async function backfillAction() {
   await attempt("/prices", async () => {
     if (!deps.ramp) throw new NotAllowedError("Ramp isn't connected.");
     await backfillFromRamp(deps.db, deps.ramp, session.orgId);
-  });
+  }, "Pulled item prices from Ramp");
 }
 
 // Public actions. Each one is authorized by the signed token it's given.

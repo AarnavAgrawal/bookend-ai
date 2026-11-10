@@ -81,6 +81,10 @@ export type Overview = {
   paidMarginBps: number | null;
   paidRevenueCents: number;
   jobs: JobRow[];
+  /** Card spend per day for the last 30 days, oldest first, with dates as YYYY-MM-DD. */
+  spendByDay: Array<{ date: string; cents: number }>;
+  /** The most recent paid jobs, newest first. */
+  paidJobs: Array<{ id: string; title: string; billedCents: number; marginCents: number; marginBps: number | null }>;
   activity: Array<{ id: string; jobId: string; jobTitle: string; toState: JobState | null; type: string; actor: string; at: Date }>;
 };
 
@@ -98,13 +102,29 @@ export async function orgOverview(db: Db, orgId: string, now = new Date()): Prom
   ).committedCents;
 
   const paid = await db
-    .select({ subtotalCents: invoices.subtotalCents, marginCents: invoices.marginCents })
+    .select({
+      jobId: invoices.jobId,
+      subtotalCents: invoices.subtotalCents,
+      marginCents: invoices.marginCents,
+      marginBps: invoices.marginBps,
+      paidAt: invoices.paidAt,
+    })
     .from(invoices)
     .where(and(eq(invoices.orgId, orgId), eq(invoices.marginStatus, "final")));
   const paidRevenueCents = paid.reduce((sum, i) => sum + i.subtotalCents, 0);
   const paidMarginCents = paid.reduce((sum, i) => sum + (i.marginCents ?? 0), 0);
 
   const titles = new Map(rows.map((r) => [r.id, r.title]));
+
+  const DAY = 24 * 60 * 60 * 1000;
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const byDay = new Map<string, number>();
+  for (let i = 29; i >= 0; i -= 1) byDay.set(new Date(today - i * DAY).toISOString().slice(0, 10), 0);
+  for (const t of monthSpend) {
+    if (!t.occurredAt || t.state === "DECLINED" || t.state === "ERROR") continue;
+    const key = t.occurredAt.toISOString().slice(0, 10);
+    if (byDay.has(key)) byDay.set(key, (byDay.get(key) ?? 0) + t.amountCents);
+  }
   const events = await db
     .select()
     .from(jobEvents)
@@ -120,6 +140,18 @@ export async function orgOverview(db: Db, orgId: string, now = new Date()): Prom
       paidRevenueCents === 0 ? null : Math.round((paidMarginCents * 10_000) / paidRevenueCents),
     paidRevenueCents,
     jobs: rows,
+    spendByDay: [...byDay].map(([date, cents]) => ({ date, cents })),
+    paidJobs: paid
+      .filter((p) => p.paidAt !== null)
+      .sort((a, b) => (b.paidAt?.getTime() ?? 0) - (a.paidAt?.getTime() ?? 0))
+      .slice(0, 6)
+      .map((p) => ({
+        id: p.jobId,
+        title: titles.get(p.jobId) ?? "Job",
+        billedCents: p.subtotalCents,
+        marginCents: p.marginCents ?? 0,
+        marginBps: p.marginBps,
+      })),
     activity: events.map((e) => ({
       id: e.id,
       jobId: e.jobId,

@@ -26,6 +26,8 @@ export default async function ApprovePage(props: PageProps<"/approve/[token]">) 
   const { fund, spend } = await jobSpend(db, job.id);
   const isRaise = approval.kind === "limit_raise";
   const expired = approval.expiresAt <= new Date();
+  // Once the link is used or out of date, the live figures no longer describe this request.
+  const pending = !done && !approval.consumedAt && !expired;
 
   return (
     <PublicShell orgName={org.name}>
@@ -33,10 +35,16 @@ export default async function ApprovePage(props: PageProps<"/approve/[token]">) 
       <div className="ticket">
         <p className="text-muted">{job.title}</p>
         <h1 className="mt-1 text-4xl">
-          {isRaise ? "Raise the limit to" : "Open a card limited to"}{" "}
+          {pending
+            ? isRaise
+              ? "Raise the limit to"
+              : "Open a card limited to"
+            : isRaise
+              ? "Limit raise to"
+              : "Card limited to"}{" "}
           <span className="money">{money(approval.amountCents)}</span>
         </h1>
-        {isRaise && fund && (
+        {pending && isRaise && fund && (
           <div className="mt-4">
             <Rail committedCents={spend.committedCents} limitCents={fund.limitCents} />
             <p className="mt-1 text-sm text-muted">
@@ -44,11 +52,13 @@ export default async function ApprovePage(props: PageProps<"/approve/[token]">) 
             </p>
           </div>
         )}
-        <p className="mt-4 text-muted">
-          {isRaise
-            ? "The crew can retry their purchase as soon as you confirm."
-            : "The card can't spend more than this, and it's frozen when the job closes."}
-        </p>
+        {pending && (
+          <p className="mt-4 text-muted">
+            {isRaise
+              ? "The crew can retry their purchase as soon as you confirm."
+              : "The card can't spend more than this, and it's frozen when the job closes."}
+          </p>
+        )}
       </div>
 
       {done && (
@@ -62,7 +72,7 @@ export default async function ApprovePage(props: PageProps<"/approve/[token]">) 
         </div>
       )}
 
-      {!done && !approval.consumedAt && !expired && (
+      {pending && (
         <form action={confirmApprovalAction.bind(null, token)} className="mt-6">
           <SubmitButton className="btn btn-amber w-full" pending="Talking to Ramp…">
             {isRaise ? "Confirm the raise" : "Confirm and open the card"}

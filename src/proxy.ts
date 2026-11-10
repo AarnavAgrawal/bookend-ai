@@ -6,6 +6,8 @@ import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server
 const isOwnerRoute = createRouteMatcher([
   "/dashboard(.*)",
   "/jobs(.*)",
+  "/cards(.*)",
+  "/customers(.*)",
   "/settings(.*)",
   "/prices(.*)",
   "/outbox(.*)",
