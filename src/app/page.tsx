@@ -63,9 +63,9 @@ export default function LandingPage() {
           <Link href="/sign-in" className="hover:underline">
             Sign in
           </Link>
-          <Link href="/dashboard" className="btn hidden min-h-10 py-1.5 text-sm sm:inline-flex">
+          <a href="/dashboard" className="btn hidden min-h-10 py-1.5 text-sm sm:inline-flex">
             Get started
-          </Link>
+          </a>
         </nav>
       </header>
 
@@ -84,9 +84,9 @@ export default function LandingPage() {
                 quoted materials, and turns any overrun into a change order your customer agrees to.
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-3">
-                <Link href="/dashboard" className="btn btn-amber px-6 text-lg focus-visible:outline-ink">
+                <a href="/dashboard" className="btn btn-amber px-6 text-lg focus-visible:outline-ink">
                   Get started
-                </Link>
+                </a>
                 <a href="#how" className="btn btn-quiet px-6 text-lg">
                   See how it works
                 </a>
@@ -195,9 +195,9 @@ export default function LandingPage() {
                 Connect Ramp, set your rates, and quote your first job from what you&apos;ve already paid.
               </p>
             </div>
-            <Link href="/dashboard" className="btn btn-amber shrink-0 self-start px-7 text-lg md:self-auto">
+            <a href="/dashboard" className="btn btn-amber shrink-0 self-start px-7 text-lg md:self-auto">
               Get started
-            </Link>
+            </a>
           </div>
         </section>
       </main>
