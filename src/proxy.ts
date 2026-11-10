@@ -1,9 +1,10 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 
-// Customer, crew, approval and webhook routes carry their own signed tokens.
+// The landing page is public. Customer, crew, approval and webhook routes
+// carry their own signed tokens.
 const isOwnerRoute = createRouteMatcher([
-  "/",
+  "/dashboard(.*)",
   "/jobs(.*)",
   "/settings(.*)",
   "/prices(.*)",

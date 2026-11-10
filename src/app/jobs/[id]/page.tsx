@@ -19,13 +19,15 @@ import { CopyLink, SubmitButton } from "@/components/capture";
 import { QuoteEditor, type EditorLine } from "@/components/quote-editor";
 import {
   ErrorNote,
+  eventLabel,
   money,
   percent,
   Rail,
   Row,
   Section,
   Shell,
-  STATE_LABELS,
+  PageHeader,
+  StatusPill,
 } from "@/components/ui";
 import {
   changeOrders,
@@ -62,6 +64,60 @@ const CANCELLABLE: JobState[] = [
   "active",
   "change_pending",
 ];
+
+const STEPS = ["Quote", "Customer", "Card", "On site", "Invoice", "Paid"] as const;
+
+const STEP_OF: Record<JobState, number> = {
+  draft: 0,
+  quote_review: 0,
+  quote_sent: 1,
+  accepted: 2,
+  card_opening: 2,
+  active: 3,
+  change_pending: 3,
+  closing: 3,
+  invoice_review: 4,
+  invoiced: 4,
+  settled: 5,
+  cancelled: -1,
+};
+
+/** Where the job is in its life. These really are steps in order, so they're numbered. */
+function JobStepper({ state }: { state: JobState }) {
+  const current = STEP_OF[state];
+  if (current < 0) return null;
+  return (
+    <ol className="mb-8 grid grid-cols-3 gap-y-2 border-y border-line py-3 text-sm sm:grid-cols-6">
+      {STEPS.map((step, index) => {
+        const done = index < current || state === "settled";
+        const here = index === current && state !== "settled";
+        return (
+          <li
+            key={step}
+            aria-current={here ? "step" : undefined}
+            className={`flex items-center gap-2 ${here ? "font-semibold text-ink" : done ? "text-ink" : "text-muted"}`}
+          >
+            <span
+              aria-hidden
+              className={`money flex h-6 w-6 shrink-0 items-center justify-center text-xs ${
+                here
+                  ? state === "change_pending"
+                    ? "bg-red text-white"
+                    : "bg-amber text-ink"
+                  : done
+                    ? "bg-ink text-paper"
+                    : "border border-line bg-white"
+              }`}
+            >
+              {done ? "✓" : index + 1}
+            </span>
+            {step}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 export default async function JobPage(props: PageProps<"/jobs/[id]">) {
   const deps = await getDeps();
@@ -120,21 +176,19 @@ export default async function JobPage(props: PageProps<"/jobs/[id]">) {
     <Shell orgName={org.name}>
       <ErrorNote message={error} />
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="money text-muted">Job {job.jobNumber}</p>
-          <h1 className="text-4xl">{job.title}</h1>
-          <p className="mt-1 text-muted">
-            {customer?.name}
+      <PageHeader
+        crumbs={[{ href: "/jobs", label: "Jobs" }]}
+        title={job.title}
+        meta={
+          <>
+            <span className="money">Job {job.jobNumber}</span>
+            {customer?.name ? `, ${customer.name}` : ""}
             {customer?.address ? `, ${customer.address}` : ""}
-          </p>
-        </div>
-        <p
-          className={`font-display text-xl font-semibold ${job.state === "change_pending" ? "text-redtext" : ""}`}
-        >
-          {STATE_LABELS[job.state]}
-        </p>
-      </div>
+          </>
+        }
+        actions={<StatusPill state={job.state} />}
+      />
+      <JobStepper state={job.state} />
 
       {fund && SPENDING_STATES.includes(job.state) && (
         <div className="mt-6">
@@ -413,7 +467,7 @@ export default async function JobPage(props: PageProps<"/jobs/[id]">) {
             {events.map((e) => (
               <li key={e.id} className="flex justify-between gap-4 py-0.5">
                 <span>
-                  {e.toState ? STATE_LABELS[e.toState] : e.type} ({e.actor})
+                  {eventLabel(e.type)} ({e.actor})
                 </span>
                 <time>{e.createdAt.toISOString().slice(0, 16).replace("T", " ")}</time>
               </li>

@@ -25,5 +25,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>{children}</body>
     </html>
   );
-  return process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? <ClerkProvider>{page}</ClerkProvider> : page;
+  return process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
+    <ClerkProvider signInFallbackRedirectUrl="/dashboard" signUpFallbackRedirectUrl="/dashboard">
+      {page}
+    </ClerkProvider>
+  ) : (
+    page
+  );
 }

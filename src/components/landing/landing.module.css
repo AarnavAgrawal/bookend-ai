@@ -1,0 +1,272 @@
+/*
+ * The hero plays one job, start to finish, in a single 11 second sequence.
+ * Every base style below is the FINAL state, so with reduced motion (or no
+ * animation support) the visitor simply sees the finished job.
+ *
+ * Positions on the rail are percentages of the final $1,100 limit:
+ *   $640 = 58.18%   $768 = 69.82%   $850 = 77.27%   $900 = 81.82%   $1,100 = 100%
+ * Keyframe percentages are seconds / 11:
+ *   0.8s 7.27%   1.4s 12.73%   2.2s 20%   2.7s 24.55%   3.4s 30.91%   3.9s 35.45%
+ *   4.6s 41.82%  4.8s 43.64%   6.2s 56.36% 6.4s 58.18%  7.1s 64.55%  7.4s 67.27%
+ *   8.0s 72.73%  8.6s 78.18%   8.8s 80%
+ *
+ * Class and keyframe names carry a bk prefix because the app's Turbopack CSS
+ * rule may load this file as global CSS rather than as a CSS module.
+ */
+
+.bkRail {
+  --end: 14px;
+  --rail-h: 88px;
+  --bar-h: 36px;
+  position: relative;
+  height: var(--rail-h);
+}
+
+@media (max-width: 639px) {
+  .bkRail {
+    --end: 10px;
+    --rail-h: 64px;
+    --bar-h: 26px;
+  }
+}
+
+.bkLeftEnd {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--end);
+  background: var(--color-ink);
+}
+
+/* The span between the bookends, measured against the final limit. */
+.bkScale {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--end);
+  right: var(--end);
+}
+
+.bkTrack,
+.bkFill,
+.bkGhost {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: var(--bar-h);
+  transform: translateY(-50%);
+}
+
+.bkTrack {
+  width: 100%;
+  background: var(--color-line);
+  animation: bk-extend 11s ease-in-out both;
+}
+
+/* Drawn after the bars so the declined purchase visibly runs past it. */
+.bkRightEnd {
+  position: absolute;
+  z-index: 1;
+  left: 100%;
+  top: 0;
+  width: var(--end);
+  height: var(--rail-h);
+  background: var(--color-amber);
+  animation:
+    bk-extendLeft 11s ease-in-out both,
+    bk-endColor 11s linear both;
+}
+
+.bkLimitTag {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  white-space: nowrap;
+  text-align: right;
+}
+
+.bkFill {
+  width: 100%;
+  background: var(--color-amber);
+  animation:
+    bk-fill 11s ease-in-out both,
+    bk-fillColor 11s linear both;
+}
+
+/* The purchase the card refused: it pokes out past the $900 bookend. */
+.bkGhost {
+  left: 77.27%;
+  width: 22.73%;
+  transform-origin: left center;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--color-red) 0 8px,
+    color-mix(in srgb, var(--color-red) 55%, white) 8px 16px
+  );
+  opacity: 0;
+  animation:
+    bk-ghostIn 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) 4.6s both,
+    bk-ghostOut 0.25s ease-in 6s forwards;
+}
+
+@keyframes bk-extend {
+  0%,
+  58.18% {
+    width: 81.82%;
+  }
+  64.55%,
+  100% {
+    width: 100%;
+  }
+}
+
+@keyframes bk-extendLeft {
+  0%,
+  58.18% {
+    left: 81.82%;
+  }
+  64.55%,
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes bk-fill {
+  0%,
+  7.27% {
+    width: 0%;
+  }
+  12.73%,
+  20% {
+    width: 58.18%;
+  }
+  24.55%,
+  30.91% {
+    width: 69.82%;
+  }
+  35.45%,
+  67.27% {
+    width: 77.27%;
+  }
+  72.73%,
+  100% {
+    width: 100%;
+  }
+}
+
+@keyframes bk-fillColor {
+  0%,
+  41.82% {
+    background-color: var(--color-amber);
+  }
+  43.64%,
+  56.36% {
+    background-color: var(--color-red);
+  }
+  58.18%,
+  100% {
+    background-color: var(--color-amber);
+  }
+}
+
+@keyframes bk-endColor {
+  0%,
+  41.82% {
+    background-color: var(--color-ink);
+  }
+  43.64%,
+  56.36% {
+    background-color: var(--color-red);
+  }
+  58.18%,
+  78.18% {
+    background-color: var(--color-ink);
+  }
+  80%,
+  100% {
+    background-color: var(--color-amber);
+  }
+}
+
+@keyframes bk-ghostIn {
+  from {
+    opacity: 1;
+    transform: translateY(-50%) scaleX(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scaleX(1);
+  }
+}
+
+@keyframes bk-ghostOut {
+  from {
+    opacity: 1;
+    transform: translateY(-50%) scaleX(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(1);
+  }
+}
+
+/*
+ * Text that changes as the job moves. Items share one grid cell; each fades in
+ * at --in and, if it is not the final state, out again at --out.
+ */
+/* Display (grid or inline-grid) comes from the caller's utility classes. */
+.bkSwapStack {
+  align-items: start;
+}
+
+.bkSwap {
+  grid-area: 1 / 1;
+  animation: bk-swapIn 0.35s ease-out var(--in, 0s) both;
+}
+
+.bkSwapGone {
+  opacity: 0;
+  animation:
+    bk-swapIn 0.35s ease-out var(--in, 0s) both,
+    bk-swapOut 0.25s ease-in var(--out, 0s) forwards;
+}
+
+/* A row or block that arrives once and stays. */
+.bkAppear {
+  animation: bk-swapIn 0.4s ease-out var(--in, 0s) both;
+}
+
+@keyframes bk-swapIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes bk-swapOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.bkReplay {
+  animation: bk-swapIn 0.4s ease-out 9.8s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bkStage,
+  .bkStage * {
+    animation: none !important;
+  }
+
+  .bkReplay {
+    display: none;
+  }
+}

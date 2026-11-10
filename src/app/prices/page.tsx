@@ -1,7 +1,12 @@
 import { desc, eq } from "drizzle-orm";
-import { addPriceAction, backfillAction, importPricesAction } from "@/app/actions";
+import {
+  addPriceAction,
+  backfillAction,
+  importPricesAction,
+  loadSamplePricesAction,
+} from "@/app/actions";
 import { SubmitButton } from "@/components/capture";
-import { ErrorNote, money, Section, Shell } from "@/components/ui";
+import { ErrorNote, money, PageHeader, Section, Shell } from "@/components/ui";
 import { priceObservations } from "@/db/schema";
 import { requireSession } from "@/platform/auth";
 import { getDeps } from "@/platform/deps";
@@ -29,10 +34,10 @@ export default async function PricesPage(props: PageProps<"/prices">) {
 
   return (
     <Shell orgName={org.name}>
-      <h1 className="text-4xl">Prices</h1>
-      <p className="mt-1 mb-6 max-w-xl text-muted">
-        What you&apos;ve actually paid. Quotes are priced from this, and it grows with every receipt.
-      </p>
+      <PageHeader
+        title="Prices"
+        meta="What you have actually paid. Quotes are priced from this, and it grows with every receipt."
+      />
       <ErrorNote message={error} />
 
       <div className="grid gap-8 sm:grid-cols-2">
@@ -68,7 +73,15 @@ export default async function PricesPage(props: PageProps<"/prices">) {
 
       <Section title={`${prices.length} prices on file`}>
         {prices.length === 0 ? (
-          <p className="text-muted">Add a few prices above so the first quote has something to use.</p>
+          <div className="ticket max-w-xl">
+            <p>Add a few prices above so the first quote has something to cite.</p>
+            <form action={loadSamplePricesAction} className="mt-3">
+              <SubmitButton className="btn btn-quiet">Load sample prices</SubmitButton>
+            </form>
+            <p className="mt-2 text-sm text-muted">
+              Typical supplier prices for plumbing, electrical and catering. Replace them with your own any time.
+            </p>
+          </div>
         ) : (
           <ul className="border-t-2 border-ink">
             {prices.map((p) => (

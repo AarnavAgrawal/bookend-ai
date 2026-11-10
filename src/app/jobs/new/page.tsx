@@ -1,6 +1,6 @@
 import { createJobAction } from "@/app/actions";
 import { SubmitButton } from "@/components/capture";
-import { ErrorNote, Shell } from "@/components/ui";
+import { ErrorNote, PageHeader, Shell } from "@/components/ui";
 import { requireSession } from "@/platform/auth";
 import { getDeps } from "@/platform/deps";
 import { loadOrg } from "@/services/jobs";
@@ -13,7 +13,7 @@ export default async function NewJobPage(props: PageProps<"/jobs/new">) {
 
   return (
     <Shell orgName={org.name}>
-      <h1 className="mb-6 text-4xl">Add a job</h1>
+      <PageHeader title="Add a job" crumbs={[{ href: "/jobs", label: "Jobs" }]} />
       <ErrorNote message={error} />
       <form action={createJobAction} className="max-w-xl space-y-4">
         <label>

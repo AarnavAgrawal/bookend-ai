@@ -38,6 +38,44 @@ export async function addPriceBookItem(
   ]);
 }
 
+/**
+ * Typical supplier prices to try the product with. They go in the price book
+ * like any entry the owner adds, so they are labelled and easy to replace.
+ */
+export const SAMPLE_PRICES: ReadonlyArray<{ item: string; unitCostCents: number }> = [
+  { item: "50 gal gas water heater", unitCostCents: 90_000 },
+  { item: "40 gal electric water heater", unitCostCents: 62_000 },
+  { item: "Water heater flue pipe kit", unitCostCents: 25_000 },
+  { item: "Gas flex connector 24in", unitCostCents: 2_400 },
+  { item: "Copper pipe 3/4in 10ft", unitCostCents: 4_800 },
+  { item: "PEX tubing 1/2in 100ft", unitCostCents: 5_200 },
+  { item: "Ball valve 3/4in", unitCostCents: 1_850 },
+  { item: "Expansion tank 2 gal", unitCostCents: 5_600 },
+  { item: "Toilet wax ring", unitCostCents: 650 },
+  { item: "20A breaker", unitCostCents: 1_200 },
+  { item: "GFCI outlet", unitCostCents: 2_200 },
+  { item: "12/2 Romex 250ft", unitCostCents: 13_500 },
+  { item: "Catering lunch per head", unitCostCents: 1_400 },
+  { item: "Chafing dish fuel 72 pack", unitCostCents: 6_900 },
+  { item: "Disposable plates 500 count", unitCostCents: 5_400 },
+];
+
+export async function loadSamplePrices(db: Db, orgId: string): Promise<number> {
+  const observedAt = new Date();
+  await recordObservations(
+    db,
+    SAMPLE_PRICES.map((p) => ({
+      orgId,
+      item: p.item,
+      unitCostCents: p.unitCostCents,
+      source: "price_book" as const,
+      sourceId: `sample:${p.item}`,
+      observedAt,
+    })),
+  );
+  return SAMPLE_PRICES.length;
+}
+
 /** Parses `item,cost` rows, with the cost in dollars. Returns how many were kept. */
 export function parsePriceCsv(csv: string): Array<{ item: string; unitCostCents: number }> {
   return csv.split(/\r?\n/).flatMap((line) => {

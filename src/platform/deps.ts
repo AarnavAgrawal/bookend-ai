@@ -4,7 +4,7 @@ import { createClaude, type Claude } from "@/ai/claude";
 import { getDb, type Db } from "@/db/client";
 import { HttpRampClient, type RampClient } from "@/ramp/client";
 import { LocalMailer, ResendMailer, type Mailer } from "./email";
-import { BlobFileStore, LocalFileStore, type FileStore } from "./files";
+import { BlobFileStore, DbFileStore, LocalFileStore, type FileStore } from "./files";
 import { DeepgramTranscriber, type Transcriber } from "./transcribe";
 
 /**
@@ -53,21 +53,31 @@ function createMailer(): Mailer {
   return key && from ? new ResendMailer(key, from) : new LocalMailer();
 }
 
+/**
+ * Blob when it's connected. Otherwise the database whenever there is a real one,
+ * because a deployed server can't write to its own disk. Only a laptop with no
+ * database at all uses local files.
+ */
+export function chooseFileStore(env: Record<string, string | undefined>, db: Db): FileStore {
+  if (env.BLOB_READ_WRITE_TOKEN || env.BLOB_STORE_ID) return new BlobFileStore();
+  if (env.DATABASE_URL || env.NODE_ENV === "production") return new DbFileStore(db);
+  return new LocalFileStore();
+}
+
 const holder = globalThis as unknown as { bookendRamp?: RampClient | null };
 
 export async function getDeps(): Promise<Deps> {
   // Kept across requests so the Ramp token, which lasts 10 days, is reused.
   if (holder.bookendRamp === undefined) holder.bookendRamp = createRamp();
   const deepgramKey = process.env.DEEPGRAM_API_KEY;
+  const db = await getDb();
   return {
-    db: await getDb(),
+    db,
     ramp: holder.bookendRamp,
     claude: createClaude(),
     transcriber: deepgramKey ? new DeepgramTranscriber(deepgramKey) : null,
     mailer: createMailer(),
-    files: process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID
-      ? new BlobFileStore()
-      : new LocalFileStore(),
+    files: chooseFileStore(process.env, db),
     secret: appSecret(),
     appUrl: appUrl(),
   };

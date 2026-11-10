@@ -1,12 +1,32 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, normalize } from "node:path";
 import { get, put } from "@vercel/blob";
+import { eq } from "drizzle-orm";
+import type { Db } from "@/db/client";
+import { storedFiles } from "@/db/schema";
 
 export type StoredFile = { bytes: Buffer; contentType: string };
 
 export interface FileStore {
   save(key: string, bytes: Buffer, contentType: string): Promise<void>;
   load(key: string): Promise<StoredFile | null>;
+}
+
+/** Files in Postgres. Photos are shrunk in the browser first, so they stay small. */
+export class DbFileStore implements FileStore {
+  constructor(private readonly db: Db) {}
+
+  async save(key: string, bytes: Buffer, contentType: string): Promise<void> {
+    await this.db
+      .insert(storedFiles)
+      .values({ key, bytes, contentType })
+      .onConflictDoUpdate({ target: storedFiles.key, set: { bytes, contentType } });
+  }
+
+  async load(key: string): Promise<StoredFile | null> {
+    const [file] = await this.db.select().from(storedFiles).where(eq(storedFiles.key, key));
+    return file ? { bytes: file.bytes, contentType: file.contentType } : null;
+  }
 }
 
 /** Receipts and invoices are customer data, so the store is private. */

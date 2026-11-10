@@ -34,7 +34,12 @@ import {
   saveQuote,
   sendQuoteToCustomer,
 } from "@/services/jobs";
-import { addPriceBookItem, backfillFromRamp, importPriceCsv } from "@/services/memory";
+import {
+  addPriceBookItem,
+  backfillFromRamp,
+  importPriceCsv,
+  loadSamplePrices,
+} from "@/services/memory";
 
 const APPROVAL_MESSAGES: Record<ApprovalFailure, string> = {
   invalid: "This approval link isn't valid.",
@@ -92,7 +97,7 @@ export async function createOrgAction(form: FormData) {
   const deps = await getDeps();
   const userId = await currentUserId();
   await attempt("/onboarding", async () => {
-    if (await findSession(deps.db, userId)) return "/";
+    if (await findSession(deps.db, userId)) return "/dashboard";
     const settings = orgSettings(form);
     if (!settings.name) throw new NotAllowedError("Enter your business name.");
     const [org] = await deps.db.insert(orgs).values(settings).returning();
@@ -103,7 +108,7 @@ export async function createOrgAction(form: FormData) {
       role: "owner",
     });
     if (deps.ramp) await connectRamp(deps, { orgId: org.id });
-    return "/";
+    return "/dashboard";
   });
 }
 
@@ -293,6 +298,13 @@ export async function importPricesAction(form: FormData) {
     const csv = text(form, "csv");
     const count = await importPriceCsv(deps.db, { orgId: session.orgId, csv });
     if (count === 0) throw new NotAllowedError("No rows found. Use one `item,cost` per line.");
+  });
+}
+
+export async function loadSamplePricesAction() {
+  const { deps, session } = await owner();
+  await attempt("/prices", async () => {
+    await loadSamplePrices(deps.db, session.orgId);
   });
 }
 

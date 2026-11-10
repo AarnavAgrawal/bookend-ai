@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { Shell } from "@/components/ui";
+import { PageHeader, Shell } from "@/components/ui";
 import { outboxMessages } from "@/db/schema";
 import { requireSession } from "@/platform/auth";
 import { getDeps } from "@/platform/deps";
@@ -24,7 +24,7 @@ export default async function OutboxPage() {
 
   return (
     <Shell orgName={org.name}>
-      <h1 className="mb-6 text-4xl">Messages</h1>
+      <PageHeader title="Messages" meta="Every quote, approval and invoice the app has sent or prepared." />
       {messages.length === 0 && (
         <p className="text-muted">Quotes, approvals and invoices you send will appear here.</p>
       )}

@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -28,6 +29,23 @@ const jobId = () =>
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
 export const jobStateEnum = pgEnum("job_state", JOB_STATES);
+
+const bytea = customType<{ data: Buffer; driverData: Buffer | Uint8Array }>({
+  dataType: () => "bytea",
+  // Drivers differ: Neon returns a Buffer, PGlite a Uint8Array.
+  fromDriver: (value) => Buffer.from(value),
+});
+
+/**
+ * Receipts, photos and invoice PDFs when no Blob store is connected. A server's
+ * disk on Vercel is read-only, so files can't go there.
+ */
+export const storedFiles = pgTable("stored_files", {
+  key: text("key").primaryKey(),
+  contentType: text("content_type").notNull(),
+  bytes: bytea("bytes").notNull(),
+  createdAt: createdAt(),
+});
 
 export const orgs = pgTable("orgs", {
   id: id(),

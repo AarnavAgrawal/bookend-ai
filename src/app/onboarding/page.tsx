@@ -7,7 +7,7 @@ import { getDeps } from "@/platform/deps";
 
 export default async function OnboardingPage(props: PageProps<"/onboarding">) {
   const { db } = await getDeps();
-  if (await findSession(db, await currentUserId())) redirect("/");
+  if (await findSession(db, await currentUserId())) redirect("/dashboard");
   const { error } = await props.searchParams;
 
   return (

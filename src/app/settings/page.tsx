@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { connectRampAction, saveSettingsAction } from "@/app/actions";
 import { SubmitButton } from "@/components/capture";
-import { ErrorNote, Section, Shell } from "@/components/ui";
+import { ErrorNote, PageHeader, Section, Shell } from "@/components/ui";
 import { rampConnections } from "@/db/schema";
 import { requireSession } from "@/platform/auth";
 import { getDeps } from "@/platform/deps";
@@ -30,7 +30,7 @@ export default async function SettingsPage(props: PageProps<"/settings">) {
 
   return (
     <Shell orgName={org.name}>
-      <h1 className="mb-6 text-4xl">Settings</h1>
+      <PageHeader title="Settings" meta="Your rates price every quote and set every card limit." />
       <ErrorNote message={error} />
 
       <form action={saveSettingsAction} className="max-w-xl space-y-4">
