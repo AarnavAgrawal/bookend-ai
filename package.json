@@ -12,6 +12,7 @@
     "test:pg": "dotenv -v PG_TESTS=1 -- vitest run src/db/concurrency.test.ts",
     "typecheck": "tsc --noEmit",
     "db:migrate": "dotenv -e .env.local -- drizzle-kit migrate",
+    "db:migrate:deploy": "drizzle-kit migrate",
     "spike": "dotenv -e .env.local -- tsx scripts/ramp-spike.ts"
   },
   "dependencies": {

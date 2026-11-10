@@ -1,3 +1,4 @@
 {
+  "buildCommand": "npm run db:migrate:deploy && npm run build",
   "crons": [{ "path": "/api/cron/tick", "schedule": "0 9 * * *" }]
 }

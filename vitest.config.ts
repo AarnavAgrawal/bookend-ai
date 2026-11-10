@@ -8,5 +8,7 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
     testTimeout: 30_000,
+    // The first test in each file boots and migrates Postgres, and files run in parallel.
+    hookTimeout: 60_000,
   },
 });
