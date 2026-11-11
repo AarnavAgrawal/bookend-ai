@@ -12,6 +12,7 @@ import { currentUserId, findSession, requireSession } from "@/platform/auth";
 import { getDeps, type Deps } from "@/platform/deps";
 import { ApprovalRejectedError, suspendJobCard, type ApprovalFailure } from "@/ramp/guard";
 import { addVoiceNote, closeJob, recordPayment, runTick, sendInvoice } from "@/services/closeout";
+import { loadDemoBusiness } from "@/services/demo";
 import {
   addManualCost,
   enterReceiptByHand,
@@ -323,6 +324,13 @@ export async function loadSamplePricesAction() {
   await attempt("/prices", async () => {
     await loadSamplePrices(deps.db, session.orgId);
   }, "Sample prices added");
+}
+
+export async function loadDemoBusinessAction() {
+  const { deps, session } = await owner();
+  await attempt("/dashboard", async () => {
+    await loadDemoBusiness(deps, session.orgId);
+  }, "Demo business loaded. Open jobs have real sandbox cards. Paid jobs used simulated ones.");
 }
 
 export async function backfillAction() {

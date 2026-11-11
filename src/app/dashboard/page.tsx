@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import Link from "next/link";
+import { loadDemoBusinessAction } from "@/app/actions";
 import {
   Card,
   EmptyState,
@@ -16,9 +17,11 @@ import {
   THead,
   TR,
 } from "@/components/app/primitives";
+import { FormError } from "@/components/app/forms";
 import { DesktopOnly, MobileList, MobileRow } from "@/components/app/lists";
 import { AppShell } from "@/components/app/shell";
 import { SpendChart } from "@/components/app/spend-chart";
+import { SubmitButton } from "@/components/capture";
 import { dollars, eventLabel, money, percent } from "@/components/ui";
 import { priceObservations, rampConnections } from "@/db/schema";
 import { requireSession } from "@/platform/auth";
@@ -45,12 +48,13 @@ const ago = (at: Date, now: Date) => {
   return days < 7 ? `${days}d ago` : at.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
-export default async function OverviewPage() {
+export default async function OverviewPage(props: PageProps<"/dashboard">) {
   const { db } = await getDeps();
   const session = await requireSession(db);
   const org = await loadOrg(db, session.orgId);
   const now = new Date();
   const overview = await orgOverview(db, session.orgId, now);
+  const { error } = await props.searchParams;
 
   const attention = overview.jobs.filter((j) => NEEDS_YOU.includes(j.state));
   const inProgress = overview.jobs.filter(
@@ -75,6 +79,7 @@ export default async function OverviewPage() {
     return (
       <AppShell orgName={org.name}>
         <PageHeader title={`Welcome, ${org.name}`} description="Three steps to your first job card." />
+        <FormError message={error} />
         <Card flush className="max-w-2xl">
           <ol className="divide-y divide-border">
             {steps.map((step, i) => (
@@ -97,6 +102,19 @@ export default async function OverviewPage() {
             ))}
           </ol>
         </Card>
+        <Card className="mt-4 max-w-2xl" title="Or look around a demo business first">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-md text-pretty text-[13px] text-muted">
+              Ten plumbing jobs, one at each stage: a quote to send, a declined card waiting on you, an
+              invoice out, and paid jobs with their true margins. Open jobs get real Ramp sandbox cards.
+            </p>
+            <form action={loadDemoBusinessAction} className="shrink-0">
+              <SubmitButton className="ui-btn ui-btn-secondary" pending="Opening sandbox cards…">
+                Load demo business
+              </SubmitButton>
+            </form>
+          </div>
+        </Card>
       </AppShell>
     );
   }
@@ -107,6 +125,7 @@ export default async function OverviewPage() {
         title="Overview"
         description={now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
       />
+      <FormError message={error} />
 
       <StatStrip>
         <Stat

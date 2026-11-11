@@ -27,6 +27,7 @@ import {
 import { applyTransaction, reconcileFunds } from "@/ramp/ledger";
 import { processInbox } from "@/ramp/webhooks";
 import { jobSpend } from "./field";
+import { recordObservations } from "./memory";
 import {
   assertAiBudget,
   customerOf,
@@ -306,7 +307,32 @@ export async function recordPayment(
       .where(eq(invoices.id, invoice.id));
     await transitionJob(tx, { orgId, jobId, event: "SETTLED", actor });
   });
+  await rememberJobPrices(db, orgId, jobId);
   if (ramp) await terminateJobCard(db, ramp, jobId);
+}
+
+/** A paid job's material prices become evidence for the next quote. */
+async function rememberJobPrices(db: Db, orgId: string, jobId: string) {
+  const quote = await latestQuote(db, jobId);
+  if (!quote) return;
+  const lines = await db
+    .select({ description: quoteLines.description, unitCostCents: quoteLines.unitCostCents })
+    .from(quoteLines)
+    .where(and(eq(quoteLines.quoteId, quote.id), eq(quoteLines.kind, "material")));
+  const observedAt = new Date();
+  await recordObservations(
+    db,
+    lines
+      .filter((l) => l.unitCostCents > 0)
+      .map((l) => ({
+        orgId,
+        item: l.description,
+        unitCostCents: l.unitCostCents,
+        source: "closed_job" as const,
+        sourceId: jobId,
+        observedAt,
+      })),
+  );
 }
 
 /** One pass of background work. Runs from the minute cron, or from the Sync button. */
