@@ -432,12 +432,14 @@ export async function loadDemoBusiness(deps: Deps, orgId: string) {
   );
   await backdate(db, toilets.id, 3);
 
+  // Left as a draft for Claude to quote. Most of what it needs has history
+  // above, and the drain pan has none, so the draft shows both cases.
   await createJob(db, {
     orgId,
-    title: "Kitchen sink leak and slow drain",
+    title: "Replace water heater at rental unit",
     description:
-      "Leak under the kitchen sink at the trap, and the drain is slow. Probably a new P-trap and a drain cleaning. The customer also wants the old shut-off valves replaced.",
-    customer: { name: "Hannah Lee", email: "hannah.lee@example.com", address: "19 Spruce St" },
+      "Tenant reports no hot water. The 40 gallon electric tank is leaking at the base and needs replacing. Add an expansion tank, replace the 3/4in shut-off ball valve, and put a drain pan under the new tank.",
+    customer: { name: "Luis Moreno", email: "luis.moreno@example.com", address: "44 Grove St, Unit B" },
   });
 
   return { jobs: 10, realCards: deps.ramp ? 4 : 0 };

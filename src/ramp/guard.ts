@@ -57,8 +57,15 @@ export async function findApproval(db: Db, token: string) {
   return approval ?? null;
 }
 
-/** Unique per job, so a crashed create can find what it made. */
-export const fundNameFor = (jobId: string) => `Bookend job ${jobId}`;
+/**
+ * Readable in Ramp, and unique per job so a crashed create can find what it
+ * made. The id suffix matters: two businesses can have jobs with the same
+ * number and title, and recovery must never adopt another tenant's fund.
+ */
+export function fundNameFor(job: { id: string; jobNumber: number; title: string }) {
+  const title = job.title.length > 40 ? `${job.title.slice(0, 39).trimEnd()}…` : job.title;
+  return `Bookend #${job.jobNumber} ${title} (${job.id.slice(0, 8)})`;
+}
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -191,9 +198,13 @@ export async function approveCardOpen(
       .from(rampConnections)
       .where(eq(rampConnections.orgId, orgId));
     if (!connection?.userId) throw new Error("Org has no Ramp fund owner configured");
+    const [job] = await tx
+      .select({ id: jobs.id, jobNumber: jobs.jobNumber, title: jobs.title })
+      .from(jobs)
+      .where(eq(jobs.id, approval.jobId));
 
     const request: OpenCardRequest = {
-      fundName: fundNameFor(approval.jobId),
+      fundName: fundNameFor(job),
       userId: connection.userId,
       limitCents: approval.amountCents,
     };

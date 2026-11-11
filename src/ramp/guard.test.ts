@@ -61,7 +61,7 @@ describe("opening a card", () => {
 
     const fund = await fundRow(job.id);
     expect(ramp.funds.get(fund.rampFundId)).toMatchObject({
-      displayName: fundNameFor(job.id),
+      displayName: fundNameFor(job),
       limitCents: LIMIT,
     });
     expect(fund).toMatchObject({ limitCents: LIMIT, state: "active" });
@@ -190,7 +190,7 @@ describe("crash safety", () => {
     await ramp.createFund({
       idempotencyKey: "other",
       userId: "u",
-      displayName: fundNameFor(job.id),
+      displayName: fundNameFor(job),
       limitCents: 1,
     });
 

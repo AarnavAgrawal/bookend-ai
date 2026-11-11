@@ -52,6 +52,11 @@ describe("the demo business", () => {
     expect(funds.filter((f) => ctx.ramp.funds.has(f.rampFundId))).toHaveLength(4);
     expect(funds.filter((f) => f.state === "terminated")).toHaveLength(3);
 
+    // Readable in Ramp, with the job id's start keeping each name unique.
+    const names = [...ctx.ramp.funds.values()].map((f) => f.displayName).sort();
+    expect(names[0]).toMatch(/^Bookend #4 Replace 40 gal electric water heater \([0-9a-f]{8}\)$/);
+    expect(names.every((n) => n.length <= 70)).toBe(true);
+
     const paid = await db.select().from(invoices).where(eq(invoices.marginStatus, "final"));
     expect(paid).toHaveLength(3);
     for (const invoice of paid) expect(invoice.paidAt!.getTime()).toBeLessThan(Date.now() - 3 * 86_400_000);
