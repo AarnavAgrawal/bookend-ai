@@ -3,6 +3,7 @@ import { MODEL, AiUnavailableError } from "@/ai/claude";
 import { priceProposal, QUOTE_PROMPT_VERSION, runQuoteAgent } from "@/ai/quote-agent";
 import type { Db } from "@/db/client";
 import {
+  aiRequests,
   changeOrders,
   customers,
   jobEvents,
@@ -176,7 +177,16 @@ async function aiCallsThisMonth(db: Db, orgId: string, now: Date) {
         gte(jobEvents.createdAt, start),
       ),
     );
-  return calls;
+  const [{ asked }] = await db
+    .select({ asked: count() })
+    .from(aiRequests)
+    .where(and(eq(aiRequests.orgId, orgId), gte(aiRequests.createdAt, start)));
+  return calls + asked;
+}
+
+/** Records a Claude call that isn't tied to one job. */
+export async function recordOrgAiUse(db: Db, input: { orgId: string; kind: string }) {
+  await db.insert(aiRequests).values(input);
 }
 
 /** Stops one signup from running up an unbounded Claude bill. */

@@ -22,7 +22,12 @@ export type EvidenceRecord = {
   observedAt: string;
 };
 
-const shortDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
+const thisYear = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+const otherYear = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+const shortDate = (iso: string) => {
+  const at = new Date(iso);
+  return (at.getUTCFullYear() === new Date().getUTCFullYear() ? thisYear : otherYear).format(at);
+};
 
 /**
  * The prices behind a quote line, so the owner can see why it costs what it
@@ -39,7 +44,7 @@ export function EvidenceList({ ids, records }: { ids: string[]; records: Record<
   if (found.length === 0) return <p className="mt-1 text-xs text-muted">{summary}</p>;
 
   return (
-    <details className="group mt-1 max-w-md">
+    <details className="group mt-1 w-full max-w-[19rem]">
       <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded text-xs text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
         <svg
           aria-hidden
@@ -58,21 +63,25 @@ export function EvidenceList({ ids, records }: { ids: string[]; records: Record<
       <div className="mt-1.5 overflow-hidden rounded-md border border-border bg-surface">
         <ul className="divide-y divide-border">
           {found.map((record) => (
-            <li key={record.id} className="flex items-baseline gap-3 px-2.5 py-1.5 text-xs">
-              <span className="min-w-0 flex-1 truncate" title={record.item}>
+            <li key={record.id} className="px-2.5 py-1.5 text-xs">
+              <p className="truncate" title={record.item}>
                 {record.item}
-              </span>
-              <span className="shrink-0 text-muted">{SOURCE_LABELS[record.source]}</span>
-              <time className="w-[5.5rem] shrink-0 text-right text-muted tabular-nums" dateTime={record.observedAt}>
-                {shortDate.format(new Date(record.observedAt))}
-              </time>
-              <span className="w-16 shrink-0 text-right font-medium tabular-nums">{money(record.unitCostCents)}</span>
+              </p>
+              <p className="mt-0.5 flex items-baseline justify-between gap-2">
+                <span className="whitespace-nowrap text-muted">
+                  {SOURCE_LABELS[record.source]},{" "}
+                  <time className="tabular-nums" dateTime={record.observedAt}>
+                    {shortDate(record.observedAt)}
+                  </time>
+                </span>
+                <span className="font-medium tabular-nums">{money(record.unitCostCents)}</span>
+              </p>
             </li>
           ))}
         </ul>
         {median !== null && (
           <p className="flex justify-between border-t border-border bg-subtle/60 px-2.5 py-1.5 text-xs">
-            <span className="text-muted">Unit cost used, the median</span>
+            <span className="text-muted">Median used</span>
             <span className="font-semibold tabular-nums">{money(median)}</span>
           </p>
         )}

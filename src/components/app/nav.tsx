@@ -15,6 +15,7 @@ const svg = (d: string) => (
 
 const MAIN: Item[] = [
   { href: "/dashboard", label: "Overview", icon: svg("M3 13h4v8H3zM10 3h4v18h-4zM17 9h4v12h-4z") },
+  { href: "/ask", label: "Ask Bookend", icon: svg("M4 5h16v11H9l-5 4zM8 9h8M8 12h5") },
   { href: "/jobs", label: "Jobs", icon: svg("M4 7h16v13H4zM9 7V4h6v3") },
   { href: "/cards", label: "Cards", icon: svg("M3 6h18v12H3zM3 10h18M7 15h3") },
   { href: "/customers", label: "Customers", icon: svg("M16 20v-2a4 4 0 0 0-8 0v2M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z") },

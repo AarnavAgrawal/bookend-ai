@@ -142,6 +142,23 @@ export default async function OverviewPage(props: PageProps<"/dashboard">) {
         />
       </StatStrip>
 
+      <form action="/ask" className="mt-4 flex items-center gap-2 rounded-lg border border-border bg-surface p-2">
+        <label htmlFor="dashboard-ask" className="sr-only">
+          Ask Bookend a question
+        </label>
+        <input
+          id="dashboard-ask"
+          name="q"
+          required
+          maxLength={2000}
+          placeholder="Ask about your business, like “Which jobs went over budget this month?”"
+          className="h-9 min-w-0 flex-1 !border-0 bg-transparent !shadow-none"
+        />
+        <button type="submit" className="ui-btn ui-btn-secondary shrink-0">
+          Ask Bookend
+        </button>
+      </form>
+
       <div className="mt-4 grid gap-4 lg:grid-cols-12">
         <Card
           className="lg:col-span-8"

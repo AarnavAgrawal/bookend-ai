@@ -13,6 +13,8 @@ const isOwnerRoute = createRouteMatcher([
   "/outbox(.*)",
   "/onboarding(.*)",
   "/api/files(.*)",
+  "/ask(.*)",
+  "/api/ask(.*)",
 ]);
 
 const withClerk = clerkMiddleware(async (auth, request) => {

@@ -342,6 +342,18 @@ export const invoices = pgTable("invoices", {
   createdAt: createdAt(),
 });
 
+/** Claude calls that belong to no job, such as questions asked on the Ask page. They count toward the monthly cap. */
+export const aiRequests = pgTable(
+  "ai_requests",
+  {
+    id: id(),
+    orgId: orgId(),
+    kind: text("kind").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("ai_requests_org").on(t.orgId, t.createdAt)],
+);
+
 /** Every message the app sends, kept so a missing email service can't lose a link. */
 export const outboxMessages = pgTable("outbox_messages", {
   id: id(),
