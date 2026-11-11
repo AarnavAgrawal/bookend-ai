@@ -2,6 +2,8 @@
 
 Quote-to-cash for small service businesses, on top of Ramp. Ramp spend history prices the quote, a card per job enforces the budget, and Bookend handles change orders, the invoice and the true margin.
 
+https://bookend-ai.vercel.app/
+
 ## Run it locally
 
 You need Node 22 or later. With no accounts at all, the app runs on a local Postgres (`.data/`), keeps uploads on disk, and shows outgoing email on the Messages page.
