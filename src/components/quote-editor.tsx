@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cardLimitForQuote, lineCostCents, lineSellCents, priceLine, summarizeQuote } from "@/domain/quote";
 import { SubmitButton } from "./capture";
+import { EvidenceList, type EvidenceRecord } from "./evidence";
 import { money } from "./ui";
 
 export type EditorLine = {
@@ -45,14 +46,12 @@ const blankLine: EditorLine = {
 
 const laborLine: EditorLine = { ...blankLine, kind: "labor", description: "Labor", quantity: 60 };
 
-const evidenceNote = (line: EditorLine) => {
+/** Where a line's price came from: past prices to inspect, or a flag that it's a guess. */
+function PriceNote({ line, evidence }: { line: EditorLine; evidence: Record<string, EvidenceRecord> }) {
   if (line.kind === "labor") return null;
-  if (line.evidenceIds.length > 0) {
-    const count = line.evidenceIds.length;
-    return `Median of ${count} past ${count === 1 ? "price" : "prices"}`;
-  }
-  return line.isEstimate ? "Estimate: no past price found" : null;
-};
+  if (line.evidenceIds.length > 0) return <EvidenceList ids={line.evidenceIds} records={evidence} />;
+  return line.isEstimate ? <p className="mt-1 text-xs text-danger">Estimate: no past price found</p> : null;
+}
 
 /** Whole, finite and not negative, so the money functions never see NaN. */
 const safeInt = (value: number) => (Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0);
@@ -65,11 +64,14 @@ export function QuoteEditor({
   initialLines,
   assumptions,
   rates,
+  evidence = {},
 }: {
   action: (form: FormData) => Promise<void>;
   initialLines: EditorLine[];
   assumptions: string;
   rates?: EditorRates;
+  /** The past prices the lines cite, by id. */
+  evidence?: Record<string, EvidenceRecord>;
 }) {
   const [rows, setRows] = useState<Row[]>(() =>
     (initialLines.length > 0 ? initialLines : [blankLine]).map(keyed),
@@ -125,7 +127,6 @@ export function QuoteEditor({
         <tbody className="block divide-y divide-border sm:table-row-group sm:divide-y-0">
           {rows.map(({ key, line, cost }, index) => {
             const isLabor = line.kind === "labor";
-            const note = evidenceNote(line);
             const p = priced?.[index];
             const n = index + 1;
             return (
@@ -139,9 +140,7 @@ export function QuoteEditor({
                     required
                     onChange={(e) => update(key, { description: e.target.value })}
                   />
-                  {note && (
-                    <p className={`mt-1 text-xs ${line.isEstimate ? "text-danger" : "text-muted"}`}>{note}</p>
-                  )}
+                  <PriceNote line={line} evidence={evidence} />
                 </td>
                 <td className={`sm:px-2 ${cell}`}>
                   <span className="mb-1 block text-xs text-muted sm:hidden">Type</span>

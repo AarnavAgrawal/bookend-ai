@@ -12,6 +12,7 @@ import type {
   receipts,
   transactions,
 } from "@/db/schema";
+import type { EvidenceRecord } from "@/components/evidence";
 import type { SpendSummary } from "@/domain/money";
 import type { JobState } from "@/domain/transition";
 import type { jobMargin } from "@/services/closeout";
@@ -25,6 +26,8 @@ export type JobView = {
   customer: Row<typeof customers> | null;
   quote: Row<typeof quotes> | null;
   lines: Array<Row<typeof quoteLines>>;
+  /** The past prices the quote lines cite, by id. */
+  evidence: Record<string, EvidenceRecord>;
   fund: Row<typeof jobFunds> | null;
   transactions: Array<Row<typeof transactions>>;
   spend: SpendSummary;

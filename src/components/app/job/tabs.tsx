@@ -10,6 +10,7 @@ import {
 } from "@/app/actions";
 import { Badge, Card, EmptyState, STATUS_LABELS, Table, TBody, TD, TH, THead, TR } from "@/components/app/primitives";
 import { SubmitButton } from "@/components/capture";
+import { EvidenceList } from "@/components/evidence";
 import { QuoteEditor, type EditorLine, type EditorRates } from "@/components/quote-editor";
 import { eventLabel, money, percent } from "@/components/ui";
 import { lineSellCents } from "@/domain/quote";
@@ -91,6 +92,7 @@ export function QuoteTab({ view }: { view: JobView }) {
           initialLines={editorLines}
           assumptions={quote?.assumptions ?? ""}
           rates={rates}
+          evidence={view.evidence}
         />
       </Card>
     );
@@ -125,7 +127,11 @@ export function QuoteTab({ view }: { view: JobView }) {
             const labor = line.kind === "labor";
             return (
               <TR key={line.id}>
-                <TD>{line.description}</TD>
+                <TD>
+                  {line.description}
+                  {line.evidenceIds.length > 0 && <EvidenceList ids={line.evidenceIds} records={view.evidence} />}
+                  {line.isEstimate && <p className="mt-1 text-xs text-danger">Estimate: no past price found</p>}
+                </TD>
                 <TD className="hidden text-muted sm:table-cell">{KIND_LABEL[line.kind]}</TD>
                 <TD align="right">{labor ? `${line.quantity / 60} h` : line.quantity}</TD>
                 <TD align="right" className="hidden sm:table-cell">

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import {
@@ -39,6 +39,7 @@ import {
   invoices,
   jobEvents,
   jobs,
+  priceObservations,
   quoteLines,
   rampOperations,
   receipts,
@@ -173,6 +174,20 @@ export default async function JobPage(props: PageProps<"/jobs/[id]">) {
   const customer = await customerOf(db, job.customerId);
   const quote = await latestQuote(db, job.id);
   const lines = quote ? await db.select().from(quoteLines).where(eq(quoteLines.quoteId, quote.id)) : [];
+  const evidenceIds = [...new Set(lines.flatMap((l) => l.evidenceIds))];
+  const evidenceRows =
+    evidenceIds.length === 0
+      ? []
+      : await db
+          .select()
+          .from(priceObservations)
+          .where(and(eq(priceObservations.orgId, session.orgId), inArray(priceObservations.id, evidenceIds)));
+  const evidence = Object.fromEntries(
+    evidenceRows.map((r) => [
+      r.id,
+      { id: r.id, item: r.item, unitCostCents: r.unitCostCents, source: r.source, observedAt: r.observedAt.toISOString() },
+    ]),
+  );
   const { fund, transactions, spend } = await jobSpend(db, job.id);
   const orders = await db
     .select()
@@ -215,6 +230,7 @@ export default async function JobPage(props: PageProps<"/jobs/[id]">) {
     customer,
     quote,
     lines,
+    evidence,
     fund,
     transactions,
     spend,
